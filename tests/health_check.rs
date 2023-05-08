@@ -2,6 +2,7 @@
 
 use std::net::TcpListener;
 
+use secrecy::ExposeSecret;
 use sqlx::{types::Uuid, Connection, Executor, PgConnection, PgPool};
 use zero2prod::configuration::{self, get_configuration};
 
@@ -14,6 +15,10 @@ pub struct TestApp {
 /// Spin up an instance of our application
 /// and returns its address (i.e. http://localhost:XXXX)
 async fn spawn_app() -> TestApp {
+    // The first time `initialize` is invuked the code in `TRACING` is executed
+    // All other invocations wull instead skip execution
+    Lazy::force(&TRACING);
+
     let listener = TcpListener::bind("127.0.0.1:0").expect("Failed to bind random port");
     let port = listener.local_addr().unwrap().port();
     let address = format!("http://127.0.0.1:{}", port);
@@ -36,7 +41,7 @@ async fn spawn_app() -> TestApp {
 
 async fn configure_database(config: &configuration::DatabaseSettings) -> PgPool {
     // Connect to database server
-    let mut connection = PgConnection::connect(&config.connection_string_without_db())
+    let mut connection = PgConnection::connect(config.connection_string_without_db().expose_secret())
         .await
         .expect("Failed to connect to Postgres");
 
@@ -47,7 +52,7 @@ async fn configure_database(config: &configuration::DatabaseSettings) -> PgPool 
         .expect("Failed to create database.");
 
     // Migrate database
-    let connection_pool = PgPool::connect(&config.connection_string())
+    let connection_pool = PgPool::connect(config.connection_string().expose_secret())
         .await
         .expect("Failed to connect to Postgres.");
 
@@ -111,6 +116,7 @@ async fn subscribe_returns_a_200_for_valid_form_data() {
     assert_eq!(saved.email, "ursula_le_guin@gmail.com");
     assert_eq!(saved.name, "le guin");
 }
+
 #[tokio::test]
 async fn subscribe_returns_a_400_when_data_is_missing() {
     // Given

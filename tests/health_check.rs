@@ -2,9 +2,28 @@
 
 use std::net::TcpListener;
 
+use once_cell::sync::Lazy;
 use secrecy::ExposeSecret;
 use sqlx::{types::Uuid, Connection, Executor, PgConnection, PgPool};
-use zero2prod::configuration::{self, get_configuration};
+use zero2prod::{
+    configuration::{self, get_configuration},
+    telemetry,
+};
+
+static TRACING: Lazy<()> = Lazy::new(|| {
+    let default_filter_level = "info".to_string();
+    let subscriber_name = "test".to_string();
+
+    if std::env::var("TEST_LOG").is_ok() {
+        let subscriber =
+            telemetry::get_log_subscriber(subscriber_name, default_filter_level, std::io::stdout);
+        telemetry::init_log_subscriber(subscriber);
+    } else {
+        let subscriber =
+            telemetry::get_log_subscriber(subscriber_name, default_filter_level, std::io::sink);
+        telemetry::init_log_subscriber(subscriber);
+    };
+});
 
 #[derive(Debug)]
 pub struct TestApp {

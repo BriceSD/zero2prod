@@ -3,6 +3,8 @@
 use actix_web::Result;
 use config::Config;
 use secrecy::{ExposeSecret, Secret};
+use serde_aux::prelude::deserialize_number_from_string;
+use sqlx::{postgres::{PgConnectOptions, PgSslMode}, ConnectOptions};
 
 #[derive(serde::Deserialize)]
 pub struct Setting {
@@ -12,6 +14,7 @@ pub struct Setting {
 
 #[derive(serde::Deserialize)]
 pub struct ApplicationSettings {
+    #[serde(deserialize_with = "deserialize_number_from_string")]
     pub port: u16,
     pub host: String,
 }
@@ -20,31 +23,35 @@ pub struct ApplicationSettings {
 pub struct DatabaseSettings {
     pub username: String,
     pub password: Secret<String>,
+    #[serde(deserialize_with = "deserialize_number_from_string")]
     pub port: u16,
     pub host: String,
     pub database_name: String,
+    // Determine if we demand the connection to be encrypted or not
+    pub require_ssl: bool,
 }
 
 impl DatabaseSettings {
-    pub fn connection_string(&self) -> Secret<String> {
-        Secret::new(format!(
-            "postgres://{}:{}@{}:{}/{}",
-            self.username,
-            self.password.expose_secret(),
-            self.host,
-            self.port,
-            self.database_name
-        ))
+    pub fn without_db(&self) -> PgConnectOptions {
+        let ssl_mode = if self.require_ssl {
+            PgSslMode::Require
+        } else {
+            PgSslMode::Prefer
+        };
+
+        PgConnectOptions::new()
+            .username(&self.username)
+            .password(self.password.expose_secret())
+            .host(&self.host)
+            .port(self.port)
+            .ssl_mode(ssl_mode)
     }
 
-    pub fn connection_string_without_db(&self) -> Secret<String> {
-        Secret::new(format!(
-            "postgres://{}:{}@{}:{}",
-            self.username,
-            self.password.expose_secret(),
-            self.host,
-            self.port
-        ))
+    pub fn with_db(&self) -> PgConnectOptions {
+        let mut options = self.without_db().database(&self.database_name);
+        options.log_statements(tracing::log::LevelFilter::Trace);
+
+        options
     }
 }
 
@@ -69,6 +76,9 @@ pub fn get_configuration() -> Result<Setting, config::ConfigError> {
         .add_source(
             config::File::from(configuration_directory.join(environment.as_str())).required(true),
         )
+        // Add in settings from environment variables (with a prefix of APP and '__' as separator)
+        // E.g. `APP_APPLICATION__PORT=5001 would set `Settings.application.port`
+        .add_source(config::Environment::with_prefix("app").separator("__"))
         // Try to convert the configuration values it read into our Settings type
         .build()?;
 

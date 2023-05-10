@@ -4,7 +4,10 @@ use actix_web::Result;
 use config::Config;
 use secrecy::{ExposeSecret, Secret};
 use serde_aux::prelude::deserialize_number_from_string;
-use sqlx::{postgres::{PgConnectOptions, PgSslMode}, ConnectOptions};
+use sqlx::{
+    postgres::{PgConnectOptions, PgSslMode},
+    ConnectOptions,
+};
 
 #[derive(serde::Deserialize)]
 pub struct Setting {
@@ -12,14 +15,14 @@ pub struct Setting {
     pub application: ApplicationSettings,
 }
 
-#[derive(serde::Deserialize)]
+#[derive(serde::Deserialize, Debug)]
 pub struct ApplicationSettings {
     #[serde(deserialize_with = "deserialize_number_from_string")]
     pub port: u16,
     pub host: String,
 }
 
-#[derive(serde::Deserialize)]
+#[derive(serde::Deserialize, Debug)]
 pub struct DatabaseSettings {
     pub username: String,
     pub password: Secret<String>,
@@ -62,13 +65,15 @@ pub fn get_configuration() -> Result<Setting, config::ConfigError> {
     // Detect the running environment.
     // default to `local` if unspecified
     let environment: Environment = std::env::var("APP_ENVIRONMENT")
-        .unwrap_or_else(|_| "local".into())
+        .unwrap_or_else(|_| {
+            tracing::info!("No profile found. Falling back to `local`");
+            "local".into()
+        })
         .try_into()
         .expect("Failed to parse APP_ENVIRONMENT");
 
-    // Add configuration values from a file named 'configuration'
-    // It will look for any top-level file with an extension
-    // that 'config' knows how to parse: yaml, json, etc
+    tracing::info!("Using profile `{:?}`", environment);
+
     let settings = Config::builder()
         // Read the "default" configuration file
         .add_source(config::File::from(configuration_directory.join("base")).required(true))
@@ -86,6 +91,7 @@ pub fn get_configuration() -> Result<Setting, config::ConfigError> {
 }
 
 /// The possible runtime environment for our application
+#[derive(Debug)]
 pub enum Environment {
     Local,
     Production,

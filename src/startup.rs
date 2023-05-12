@@ -1,9 +1,9 @@
 //! src/startup.rs
 
-use std::net::TcpListener;
 use actix_web::{dev::Server, web, App, HttpServer};
-use tracing_actix_web::TracingLogger;
 use sqlx::PgPool;
+use std::net::TcpListener;
+use tracing_actix_web::TracingLogger;
 
 use crate::routes::{health_check, subscriptions};
 

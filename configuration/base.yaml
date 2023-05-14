@@ -8,3 +8,11 @@ database:
   username: "postgres"
   password: "password"
   database_name: "newsletter"
+email_client:
+  # Value retrieved from Postmark's API documentation
+  base_url: "127.0.0.1"
+  # Use the single sender email you authorised on Postmark!
+  sender_email: "test@gmail.com"
+  # We are only setting the development value,
+  # we'll deal with the production token outside of version control
+  authorization_token: "my-secret-token"

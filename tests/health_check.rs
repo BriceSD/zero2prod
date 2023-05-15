@@ -1,12 +1,13 @@
 //! tests/health_check.rs
 
-use std::net::TcpListener;
+use std::{net::TcpListener, time::Duration};
 
 use once_cell::sync::Lazy;
 use sqlx::{types::Uuid, Connection, Executor, PgConnection, PgPool};
 use zero2prod::{
     configuration::{self, get_configuration},
-    telemetry, email_client::EmailClient,
+    email_client::EmailClient,
+    telemetry,
 };
 
 static TRACING: Lazy<()> = Lazy::new(|| {
@@ -51,10 +52,15 @@ async fn spawn_app() -> TestApp {
         .email_client
         .sender()
         .expect("Invalid sender email address.");
-    let email_client = EmailClient::new(configuration.email_client.base_url, sender_email, configuration.email_client.authorization_token);
+    let email_client = EmailClient::new(
+        configuration.email_client.base_url,
+        sender_email,
+        configuration.email_client.authorization_token,
+        Duration::from_millis(configuration.email_client.timeout_milliseconds),
+    );
 
-    let server =
-        zero2prod::startup::run(listener, connection_pool.clone(), email_client).expect("Failed to bind address");
+    let server = zero2prod::startup::run(listener, connection_pool.clone(), email_client)
+        .expect("Failed to bind address");
 
     let _ = tokio::spawn(server);
 

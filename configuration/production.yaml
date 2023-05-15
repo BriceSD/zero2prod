@@ -8,3 +8,4 @@ email_client:
   base_url: "https://api.postmarkapp.com"
   # Use the single sender email you authorised on Postmark!
   sender_email: "brice.saunier-debes@telecomnancy.net"
+  timeout_milliseconds: 10000

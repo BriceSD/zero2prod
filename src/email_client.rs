@@ -19,10 +19,12 @@ impl EmailClient {
         authorization_token: Secret<String>,
         timeout: std::time::Duration,
     ) -> Self {
+
         let http_client = Client::builder()
             .timeout(timeout)
             .build()
             .unwrap();
+
         Self {
             http_client,
             base_url,

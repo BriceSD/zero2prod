@@ -1,7 +1,7 @@
 //! main.rs
 
 use zero2prod::{
-    configuration::get_configuration, startup::{self, Application}, telemetry,
+    configuration::get_configuration, startup::Application, telemetry,
 };
 
 /// Main app, will panic if no configuration file is found 

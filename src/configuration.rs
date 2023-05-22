@@ -26,17 +26,12 @@ pub struct EmailClientSettings {
     pub timeout_milliseconds: u64,
 }
 
-impl EmailClientSettings {
-    pub fn sender(&self) -> Result<SubscriberEmail, String> {
-        SubscriberEmail::parse(self.sender_email.clone())
-    }
-}
-
 #[derive(serde::Deserialize, Debug, Clone)]
 pub struct ApplicationSettings {
     #[serde(deserialize_with = "deserialize_number_from_string")]
     pub port: u16,
     pub host: String,
+    pub base_url: String,
 }
 
 #[derive(serde::Deserialize, Debug, Clone)]
@@ -47,8 +42,13 @@ pub struct DatabaseSettings {
     pub port: u16,
     pub host: String,
     pub database_name: String,
-    // Determine if we demand the connection to be encrypted or not
     pub require_ssl: bool,
+}
+
+impl EmailClientSettings {
+    pub fn sender(&self) -> Result<SubscriberEmail, String> {
+        SubscriberEmail::parse(self.sender_email.clone())
+    }
 }
 
 impl DatabaseSettings {

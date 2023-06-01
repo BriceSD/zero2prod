@@ -1,5 +1,3 @@
-use std::result;
-
 use wiremock::{
     matchers::{method, path},
     Mock, ResponseTemplate,

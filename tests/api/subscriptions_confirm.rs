@@ -110,30 +110,18 @@ async fn reclicking_on_the_confirmation_link_returns_200() {
 }
 
 #[tokio::test]
-async fn confirmations_with_wrong_token_are_rejected_with_a_401() {
+async fn confirmations_with_wrong_token_format_are_rejected_with_a_400() {
     // Given
     let app = spawn_app().await;
-    let body = "name=le%20guin&email=ursula_le_guin%40gmail.com";
-
-    Mock::given(path("/email"))
-        .and(method("POST"))
-        .respond_with(ResponseTemplate::new(200))
-        .mount(&app.email_server)
-        .await;
-
-    app.post_subscriptions(body.into()).await;
-    let email_request = &app.email_server.received_requests().await.unwrap()[0];
-    let confirmation_links = app.get_confirmation_links(email_request);
+    let body = "subscription_token=28829haeihi";
 
     // When
-    let response = reqwest::get(confirmation_links.html)
-        .await
-        .unwrap();
-
+    let response = app.confirm_subscription(body.into()).await;
 
     // Then
-    assert_eq!(response.status().as_u16(), 401);
+    assert_eq!(response.status().as_u16(), 400);
 }
+
 #[tokio::test]
 async fn confirm_fails_if_there_is_a_fatal_database_error() {
     // Given
@@ -160,7 +148,6 @@ async fn confirm_fails_if_there_is_a_fatal_database_error() {
     let response = reqwest::get(confirmation_links.html)
         .await
         .unwrap();
-
 
     // Then
     assert_eq!(response.status().as_u16(), 500);

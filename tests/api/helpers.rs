@@ -106,6 +106,16 @@ impl TestApp {
         let plain_text = get_link(body["TextBody"].as_str().unwrap());
         ConfirmationLinks { html, plain_text }
     }
+
+    pub async fn confirm_subscription(&self, body: String) -> reqwest::Response {
+        reqwest::Client::new()
+            .get(&format!("{}/subscriptions/confirm?{}", &self.address, body))
+            .header("Content-Type", "application/x-www-form-urlencoded")
+            .send()
+            .await
+            .expect("Failed to execute request.")
+    }
+
 }
 
 async fn configure_database(config: &configuration::DatabaseSettings) -> PgPool {

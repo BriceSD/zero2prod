@@ -1,5 +1,3 @@
-//! src/routes/subscriptions_confirm.rs
-
 use actix_web::{web, HttpResponse};
 use anyhow::Context;
 use serde::Deserialize;
@@ -14,8 +12,8 @@ impl SubscriberToken {
         if validate_token(&token) {
             Ok(Self(token))
         } else {
-            Err(ParseTokenError(anyhow::Error::msg(
-                "The subscriber token is not valid",
+            Err(ParseTokenError(anyhow::anyhow!(
+                "The subscriber token format is not valid",
             )))
         }
     }
@@ -34,17 +32,17 @@ impl AsRef<str> for SubscriberToken {
 pub struct ParseTokenError(anyhow::Error);
 
 impl std::error::Error for ParseTokenError {
-    // No need to implement source since ParseTokenError is always a root cause ?
-    // fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-    //     Some(&self.0)
-    // }
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        Some(self.0.as_ref())
+    }
 }
+
 
 impl std::fmt::Display for ParseTokenError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "An error was encountered while\
+            "An error was encountered while \
                 trying to parse a subscription token."
         )
     }
@@ -66,9 +64,9 @@ pub async fn confirm(
     parameters: web::Query<Parameters>,
     pool: web::Data<PgPool>,
 ) -> Result<HttpResponse, ConfirmSubscriptionError> {
-    let token = SubscriberToken::parse(parameters.0.subscription_token)
-        .context("Token format is invalid")?;
-
+    let token = SubscriberToken::parse(parameters.0.subscription_token) 
+        .map_err(ConfirmSubscriptionError::InvalidTokenFormat)?;
+        
     let subscriber_id = get_subscriber_id_from_token(&pool, &token)
         .await
         .context("Failed to retrieve subscriber for associated token")?
@@ -118,6 +116,8 @@ pub enum ConfirmSubscriptionError {
     UnknownToken,
     #[error(transparent)]
     UnexpectedError(#[from] anyhow::Error),
+    #[error(transparent)]
+    InvalidTokenFormat(#[from] ParseTokenError),
 }
 
 impl std::fmt::Debug for ConfirmSubscriptionError {
@@ -130,6 +130,7 @@ impl actix_web::error::ResponseError for ConfirmSubscriptionError {
     fn status_code(&self) -> reqwest::StatusCode {
         match self {
             ConfirmSubscriptionError::UnknownToken => reqwest::StatusCode::UNAUTHORIZED,
+            ConfirmSubscriptionError::InvalidTokenFormat(_) => reqwest::StatusCode::BAD_REQUEST,
             ConfirmSubscriptionError::UnexpectedError(_) => {
                 reqwest::StatusCode::INTERNAL_SERVER_ERROR
             }
@@ -162,7 +163,7 @@ impl std::fmt::Debug for UpdateTokenStatusError {
     }
 }
 
-fn error_chain_fmt(
+pub fn error_chain_fmt(
     e: &impl std::error::Error,
     f: &mut std::fmt::Formatter<'_>,
 ) -> std::fmt::Result {

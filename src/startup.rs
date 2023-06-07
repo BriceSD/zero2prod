@@ -8,7 +8,7 @@ use tracing_actix_web::TracingLogger;
 use crate::{
     configuration::{DatabaseSettings, Setting},
     email_client::EmailClient,
-    routes::{health_check, subscriptions, subscriptions_confirm},
+    routes::{health_check, subscriptions, subscriptions_confirm, newsletter},
 };
 
 pub struct Application {
@@ -95,6 +95,7 @@ pub fn run(
                 "/subscriptions/confirm",
                 web::get().to(subscriptions_confirm::confirm),
             )
+                .route("/newsletters", web::post().to(newsletter::publish_newsletter))
             .app_data(db_pool.clone())
             .app_data(email_client.clone())
             .app_data(base_url.clone())

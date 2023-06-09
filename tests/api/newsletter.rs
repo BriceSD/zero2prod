@@ -94,6 +94,33 @@ async fn newsletters_are_delivered_to_confirmed_subscribers() {
     // Mock verifies on Drop that we sent the newsletter email
 }
 
+#[tokio::test]
+async fn requests_missing_authorization_are_rejected() {
+    // Given
+    let app = spawn_app().await;
+
+    // When
+    let response = reqwest::Client::new()
+        .post(&format!("{}/newsletters", &app.address))
+        .json(&serde_json::json!({
+            "title": "Newsletter title",
+            "content": {
+                "text": "Newsletter body as plain text",
+                "html": "<p>Newsletter body as HTML</p>",
+            }
+        }))
+        .send()
+        .await
+        .expect("Failed to execute request.");
+
+    // Then
+    assert_eq!(401, response.status().as_u16());
+    assert_eq!(
+        r#"Basic realm="publish""#,
+        response.headers()["WWW-Authenticate"]
+    );
+}
+
 /// Use the public API of the application under test to create
 /// an unconfirmed subscriber.
 async fn create_unconfirmed_subscriber(app: &TestApp) -> ConfirmationLinks {

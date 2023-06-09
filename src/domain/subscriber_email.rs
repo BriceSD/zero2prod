@@ -45,6 +45,7 @@ mod tests {
 
     proptest! {
 
+        #[allow(clippy::len_zero)]
         #[test]
         fn valid_emails_are_parsed_successfully(
             local in EMAIL_USER.prop_filter(

@@ -1,4 +1,4 @@
-use crate::{domain::SubscriberEmail, email_client::EmailClient, routes::error_chain_fmt};
+use crate::{domain::SubscriberEmail, email_client::EmailClient, routes::error_chain_fmt, telemetry::spawn_blocking_with_tracing};
 use actix_web::http::header::{HeaderMap, HeaderValue};
 use actix_web::http::{header, StatusCode};
 use actix_web::{HttpRequest, HttpResponse};
@@ -148,9 +148,9 @@ async fn validate_credentials(
         .map_err(PublishError::UnexpectedError)?
         .ok_or_else(|| PublishError::AuthError(anyhow::anyhow!("Unknown username.")))?;
 
-    tokio::task::spawn_blocking(move || {
-        verify_password_hash(expected_password_hash, credentials.password)
-    })
+    spawn_blocking_with_tracing(
+        move || verify_password_hash(expected_password_hash, credentials.password),
+    )
     .await
     .context("Failed to spawn blocking task.")
     .map_err(PublishError::UnexpectedError)??;
@@ -198,6 +198,7 @@ async fn get_stored_credentials(
     .map(|row| (row.user_id, Secret::new(row.password_hash)));
     Ok(row)
 }
+
 #[derive(thiserror::Error)]
 pub enum PublishError {
     #[error("Authentication failed.")]

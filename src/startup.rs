@@ -1,5 +1,7 @@
-use actix_web::{dev::Server, web, App, HttpServer};
+use actix_web::{dev::Server, web, App, HttpServer, cookie::Key};
+use actix_web_flash_messages::{storage::CookieMessageStore, FlashMessagesFramework};
 use secrecy::Secret;
+use secrecy::ExposeSecret;
 use sqlx::{postgres::PgPoolOptions, PgPool};
 use std::net::TcpListener;
 use tracing_actix_web::TracingLogger;
@@ -7,7 +9,9 @@ use tracing_actix_web::TracingLogger;
 use crate::{
     configuration::{DatabaseSettings, Setting},
     email_client::EmailClient,
-    routes::{health_check, subscriptions, subscriptions_confirm, newsletter, home, login_form, login},
+    routes::{
+        health_check, home, login, login_form, newsletter, subscriptions, subscriptions_confirm,
+    },
 };
 
 pub struct Application {
@@ -90,9 +94,13 @@ pub fn run(
     let email_client = web::Data::new(email_client);
     let base_url = web::Data::new(base_url);
     let hmac_secret = web::Data::new(hmac_secret);
+    let message_store =
+        CookieMessageStore::builder(Key::from(hmac_secret.0.expose_secret().as_bytes())).build();
+    let message_framework = FlashMessagesFramework::builder(message_store).build();
 
     let server = HttpServer::new(move || {
         App::new()
+            .wrap(message_framework.clone())
             .wrap(TracingLogger::default())
             .route("/", web::get().to(home))
             .route("/login", web::get().to(login_form))
@@ -103,7 +111,10 @@ pub fn run(
                 "/subscriptions/confirm",
                 web::get().to(subscriptions_confirm::confirm),
             )
-                .route("/newsletters", web::post().to(newsletter::publish_newsletter))
+            .route(
+                "/newsletters",
+                web::post().to(newsletter::publish_newsletter),
+            )
             .app_data(db_pool.clone())
             .app_data(email_client.clone())
             .app_data(base_url.clone())

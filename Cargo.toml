@@ -36,6 +36,7 @@ base64 = "0.13"
 argon2 = { version = "0.5", features = ["std"] }
 urlencoding = "2"
 htmlescape = "0.3"
+serde_json = "1"
 
 [dependencies.actix-session]
 version = "0.7"
@@ -58,6 +59,7 @@ features = [
 version = "1.3.2"
 features = [
     "v4",                # Lets you generate random UUIDs
+    "serde",
 ]
 
 [dev-dependencies]

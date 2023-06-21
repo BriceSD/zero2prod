@@ -20,3 +20,5 @@ email_client:
   # we'll deal with the production token outside of version control
   authorization_token: "my-secret-token"
   timeout_milliseconds: 10000
+# 6379 is Redis' default port
+redis_uri: "redis://127.0.0.1:6379"

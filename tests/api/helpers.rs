@@ -1,4 +1,6 @@
-use argon2::{password_hash::SaltString, Algorithm, Argon2, Params, PasswordHasher, Version};
+use argon2::{
+    password_hash::SaltString, Algorithm, Argon2, Params, PasswordHasher, Version,
+};
 use once_cell::sync::Lazy;
 use sqlx::{types::Uuid, Connection, Executor, PgConnection, PgPool};
 use wiremock::MockServer;
@@ -93,6 +95,19 @@ pub async fn spawn_app() -> TestApp {
 }
 
 impl TestApp {
+    pub async fn login_admin(&self) {
+        let username = &self.test_user.username;
+        let password = &self.test_user.password;
+
+        let login_body = serde_json::json!({
+            "username": &username,
+            "password": &password
+        });
+
+        let response = self.post_login(&login_body).await;
+        assert_is_redirect_to(&response, "/admin/dashboard");
+    }
+
     pub async fn post_subscriptions(&self, body: String) -> reqwest::Response {
         self.api_client
             .post(&format!("{}/subscriptions", &self.address))
@@ -177,8 +192,35 @@ impl TestApp {
             .await
             .expect("Failed to execute request.")
     }
+
     pub async fn get_admin_dashboard_html(&self) -> String {
         self.get_admin_dashboard().await.text().await.unwrap()
+    }
+
+    pub async fn post_change_password<Body>(&self, body: &Body) -> reqwest::Response
+    where
+        Body: serde::Serialize,
+    {
+        self.api_client
+            .post(&format!("{}/admin/change_password", &self.address))
+            // This `reqwest` method makes sure that the body is URL-encoded
+            // and the `Content-Type` header is set accordingly.
+            .form(body)
+            .send()
+            .await
+            .expect("Failed to execute request.")
+    }
+
+    pub async fn get_change_password(&self) -> reqwest::Response {
+        self.api_client
+            .get(&format!("{}/admin/change_password", &self.address))
+            .send()
+            .await
+            .expect("Failed to execute request.")
+    }
+
+    pub async fn get_change_password_html(&self) -> String {
+        self.get_change_password().await.text().await.unwrap()
     }
 }
 

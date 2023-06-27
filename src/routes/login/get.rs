@@ -9,7 +9,6 @@ pub async fn login_form(flash_messages: IncomingFlashMessages) -> HttpResponse {
     }
 
     HttpResponse::Ok()
-        // No more removal cookie!
         .content_type(ContentType::html())
         .body(format!(
             r#"

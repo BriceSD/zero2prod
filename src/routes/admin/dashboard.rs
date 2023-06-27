@@ -1,4 +1,3 @@
-//! src/routes/admin/dashboard.rs
 use actix_web::{http::header::{ContentType, self}, web, HttpResponse};
 use anyhow::Context;
 use sqlx::PgPool;

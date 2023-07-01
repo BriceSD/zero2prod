@@ -1,8 +1,6 @@
-
-
 use anyhow::Context;
-use argon2::{PasswordHash, Argon2, PasswordVerifier};
-use secrecy::{Secret, ExposeSecret};
+use argon2::{Argon2, PasswordHash, PasswordVerifier};
+use secrecy::{ExposeSecret, Secret};
 use sqlx::PgPool;
 
 use crate::telemetry::spawn_blocking_with_tracing;
@@ -33,7 +31,7 @@ pub async fn validate_credentials(
     }
 
     spawn_blocking_with_tracing(move || {
-        verify_password_hash(expected_password_hash, credentials.password)
+        verify_password_hash(&expected_password_hash, &credentials.password)
     })
     .await
     .context("Failed to spawn blocking task.")??;
@@ -52,8 +50,8 @@ pub async fn validate_credentials(
     skip(expected_password_hash, password_candidate)
 )]
 pub fn verify_password_hash(
-    expected_password_hash: Secret<String>,
-    password_candidate: Secret<String>,
+    expected_password_hash: &Secret<String>,
+    password_candidate: &Secret<String>,
 ) -> Result<(), AuthError> {
     let expected_password_hash = PasswordHash::new(expected_password_hash.expose_secret())
         .context("Failed to parse hash in PHC string format.")?;
@@ -66,7 +64,6 @@ pub fn verify_password_hash(
         .context("Invalid password.")
         .map_err(AuthError::InvalidCredentials)
 }
-
 
 #[tracing::instrument(name = "Get stored credentials", skip(username, pool))]
 async fn get_stored_credentials(
@@ -87,7 +84,6 @@ async fn get_stored_credentials(
     .map(|row| (row.user_id, Secret::new(row.password_hash)));
     Ok(row)
 }
-
 
 #[derive(thiserror::Error, Debug)]
 pub enum AuthError {

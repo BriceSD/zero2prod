@@ -222,6 +222,18 @@ impl TestApp {
     pub async fn get_change_password_html(&self) -> String {
         self.get_change_password().await.text().await.unwrap()
     }
+
+    pub async fn get_logout(&self) -> reqwest::Response {
+        self.api_client
+            .get(&format!("{}/admin/logout", &self.address))
+            .send()
+            .await
+            .expect("Failed to execute request.")
+    }
+
+    pub async fn get_logout_html(&self) -> String {
+        self.get_logout().await.text().await.unwrap()
+    }
 }
 
 async fn configure_database(config: &configuration::DatabaseSettings) -> PgPool {

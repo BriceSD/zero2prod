@@ -28,6 +28,7 @@ pub async fn admin_dashboard(
 </head>
 <body>
     <p>Welcome {username}!</p>
+<p><a href="/admin/logout">&lt;- Logout</a></p>
 </body>
 </html>"#
         )))

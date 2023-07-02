@@ -15,6 +15,14 @@ async fn you_must_be_logged_in_to_reset_password() {
         "new_password_confirmation": "",
     });
 
+    // When - Part 1.1 - Access Change Password page
+    let response = app.get_change_password().await;
+    assert_is_redirect_to(&response, "/login");
+
+    // When - Part 1.2 - Follow the redirect
+    let html_page = app.get_login_html().await;
+    assert!(html_page.contains("You must be logged in"));
+
     // When - Part 1 - Change Password
     let response = app.post_change_password(&change_password_body).await;
     assert_is_redirect_to(&response, "/login");

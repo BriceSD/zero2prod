@@ -1,13 +1,34 @@
 use anyhow::Context;
-use argon2::{Argon2, PasswordHash, PasswordVerifier};
+use argon2::{Argon2, PasswordHash, PasswordVerifier, password_hash::SaltString, PasswordHasher};
 use secrecy::{ExposeSecret, Secret};
 use sqlx::PgPool;
+use uuid::Uuid;
 
 use crate::telemetry::spawn_blocking_with_tracing;
 
 pub struct Credentials {
     pub username: String,
     pub password: Secret<String>,
+}
+
+#[tracing::instrument(
+    name = "Verify password hash",
+    skip(expected_password_hash, password_candidate)
+)]
+pub fn verify_password_hash(
+    expected_password_hash: &Secret<String>,
+    password_candidate: &Secret<String>,
+) -> Result<(), AuthError> {
+    let expected_password_hash = PasswordHash::new(expected_password_hash.expose_secret())
+        .context("Failed to parse hash in PHC string format.")?;
+
+    Argon2::default()
+        .verify_password(
+            password_candidate.expose_secret().as_bytes(),
+            &expected_password_hash,
+        )
+        .context("Invalid password.")
+        .map_err(AuthError::InvalidCredentials)
 }
 
 #[tracing::instrument(name = "Validate credentials", skip(credentials, pool))]
@@ -45,24 +66,57 @@ pub async fn validate_credentials(
         .map_err(AuthError::InvalidCredentials)
 }
 
-#[tracing::instrument(
-    name = "Verify password hash",
-    skip(expected_password_hash, password_candidate)
-)]
-pub fn verify_password_hash(
-    expected_password_hash: &Secret<String>,
-    password_candidate: &Secret<String>,
-) -> Result<(), AuthError> {
-    let expected_password_hash = PasswordHash::new(expected_password_hash.expose_secret())
-        .context("Failed to parse hash in PHC string format.")?;
+#[tracing::instrument(name = "Update password", skip(pool))]
+pub async fn update_password(
+    user_id: Uuid,
+    password: &Secret<String>,
+    pool: &PgPool,
+) -> Result<(), anyhow::Error> {
+    let salt = SaltString::generate(&mut rand::thread_rng());
+    let password_hash = Argon2::new(
+        argon2::Algorithm::Argon2id,
+        argon2::Version::V0x13,
+        argon2::Params::new(15000, 2, 1, None).unwrap(),
+    )
+    .hash_password(password.expose_secret().as_bytes(), &salt)
+    .unwrap()
+    .to_string();
 
-    Argon2::default()
-        .verify_password(
-            password_candidate.expose_secret().as_bytes(),
-            &expected_password_hash,
-        )
-        .context("Invalid password.")
-        .map_err(AuthError::InvalidCredentials)
+    sqlx::query!(
+        r#"
+UPDATE users
+SET password_hash = $1
+WHERE user_id = $2
+"#,
+        password_hash,
+        user_id,
+    )
+    .execute(pool)
+    .await
+    .context("Failed to perform a query to update a user password.")?;
+
+    Ok(())
+}
+
+#[tracing::instrument(name = "Get stored password hash", skip(user_id, pool))]
+pub async fn get_stored_password_hash(
+    user_id: Uuid,
+    pool: &PgPool,
+) -> Result<Option<Secret<String>>, anyhow::Error> {
+    let row = sqlx::query!(
+        r#"
+        SELECT password_hash
+        FROM users
+        WHERE user_id = $1
+        "#,
+        user_id,
+    )
+    .fetch_optional(pool)
+    .await
+    .context("Failed to perform a query to retrieve stored credentials.")?
+    .map(|row| Secret::new(row.password_hash));
+
+    Ok(row)
 }
 
 #[tracing::instrument(name = "Get stored credentials", skip(username, pool))]

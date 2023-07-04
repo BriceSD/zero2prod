@@ -1,26 +1,21 @@
-use actix_web::{http::header::{ContentType, self}, web, HttpResponse};
+use actix_web::{http::header::ContentType, web, HttpResponse};
 use anyhow::Context;
 use sqlx::PgPool;
 use uuid::Uuid;
 
-use crate::{session_state::TypedSession, utils::e500};
+use crate::{utils::e500, authentication::UserId};
 
 pub async fn admin_dashboard(
-    session: TypedSession,
     pool: web::Data<PgPool>,
+    user_id: web::ReqData<UserId>,
 ) -> Result<HttpResponse, actix_web::Error> {
-    let username = if let Some(user_id) = session.get_user_id().map_err(e500)? {
-        get_username(user_id, &pool).await.map_err(e500)?
-    } else {
-        return Ok(HttpResponse::SeeOther()
-            .insert_header((header::LOCATION, "/login"))
-            .finish());
-    };
+    let user_id = user_id.into_inner();
+    let username = get_username(*user_id, &pool).await.map_err(e500)?;
 
     Ok(HttpResponse::Ok()
-        .content_type(ContentType::html())
-        .body(format!(
-            r#"<!DOCTYPE html>
+    .content_type(ContentType::html())
+    .body(format!(
+r#"<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta http-equiv="content-type" content="text/html; charset=utf-8">
@@ -28,10 +23,14 @@ pub async fn admin_dashboard(
 </head>
 <body>
     <p>Welcome {username}!</p>
-<p><a href="/admin/logout">&lt;- Logout</a></p>
+    <p>Available actions:</p>
+    <ol>
+        <li><a href="/admin/change_password">Change password</a></li>
+        <p><a href="/admin/logout">&lt;- Logout</a></p>
+    </ol>
 </body>
-</html>"#
-        )))
+</html>"#,
+    )))
 }
 
 #[tracing::instrument(name = "Get username", skip(pool))]

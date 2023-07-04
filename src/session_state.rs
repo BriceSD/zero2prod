@@ -17,8 +17,8 @@ impl TypedSession {
         self.0.insert(Self::USER_ID_KEY, user_id)
     }
 
-    pub fn remove_user_id(&self) -> Option<String> {
-        self.0.remove(Self::USER_ID_KEY)
+    pub fn logout(&self) {
+        self.0.purge()
     }
     
     pub fn get_user_id(&self) -> Result<Option<Uuid>, SessionGetError> {

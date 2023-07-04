@@ -1,10 +1,12 @@
+use std::net::TcpListener;
+
 use actix_session::{SessionMiddleware, storage::RedisSessionStore};
 use actix_web::{cookie::Key, dev::Server, web, App, HttpServer};
 use actix_web_flash_messages::{storage::CookieMessageStore, FlashMessagesFramework};
+use actix_web_lab::middleware::from_fn;
 use secrecy::ExposeSecret;
 use secrecy::Secret;
 use sqlx::{postgres::PgPoolOptions, PgPool};
-use std::net::TcpListener;
 use tracing_actix_web::TracingLogger;
 
 use crate::{
@@ -12,7 +14,7 @@ use crate::{
     email_client::EmailClient,
     routes::{
         health_check, home, login, login_form, newsletter, subscriptions, subscriptions_confirm, admin_dashboard, change_password, change_password_form, logout,
-    },
+    }, authentication::reject_anonymous_users,
 };
 
 pub struct Application {
@@ -111,10 +113,6 @@ pub async fn run(
             .route("/", web::get().to(home))
             .route("/login", web::get().to(login_form))
             .route("/login", web::post().to(login))
-            .route("/admin/dashboard", web::get().to(admin_dashboard))
-            .route("/admin/logout", web::get().to(logout))
-            .route("/admin/change_password", web::post().to(change_password))
-            .route("/admin/change_password", web::get().to(change_password_form))
             .route("/health_check", web::get().to(health_check::health_check))
             .route("/subscriptions", web::post().to(subscriptions::subscribe))
             .route(
@@ -124,6 +122,14 @@ pub async fn run(
             .route(
                 "/newsletters",
                 web::post().to(newsletter::publish_newsletter),
+            )
+            .service(
+                web::scope("/admin")
+                    .wrap(from_fn(reject_anonymous_users))
+                    .route("/dashboard", web::get().to(admin_dashboard))
+                    .route("/logout", web::get().to(logout))
+                    .route("/change_password", web::post().to(change_password))
+                    .route("/change_password", web::get().to(change_password_form))
             )
             .app_data(db_pool.clone())
             .app_data(email_client.clone())

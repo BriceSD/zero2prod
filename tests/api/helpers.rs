@@ -230,10 +230,6 @@ impl TestApp {
             .await
             .expect("Failed to execute request.")
     }
-
-    pub async fn get_logout_html(&self) -> String {
-        self.get_logout().await.text().await.unwrap()
-    }
 }
 
 async fn configure_database(config: &configuration::DatabaseSettings) -> PgPool {

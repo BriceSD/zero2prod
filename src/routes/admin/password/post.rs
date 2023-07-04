@@ -1,18 +1,16 @@
 use actix_web::HttpResponse;
 use actix_web::{http::header::LOCATION, web};
 use actix_web_flash_messages::FlashMessage;
-use anyhow::{anyhow, Context};
-use argon2::{password_hash::SaltString, Algorithm, Argon2, Params, PasswordHasher, Version};
+use anyhow::anyhow;
 use reqwest::StatusCode;
 use secrecy::{ExposeSecret, Secret};
 use sqlx::PgPool;
-use uuid::Uuid;
+use crate::authentication::UserId;
 
 use crate::{
     authentication::{verify_password_hash, AuthError},
     domain::AdminPassword,
     routes::error_chain_fmt,
-    session_state::TypedSession,
     utils::{e500, see_other},
 };
 
@@ -24,19 +22,15 @@ pub struct FormData {
 }
 
 #[tracing::instrument(
-skip(form, pool, session),
+skip(form, pool),
 fields(username=tracing::field::Empty, user_id=tracing::field::Empty)
 )]
 pub async fn change_password(
     form: web::Form<FormData>,
     pool: web::Data<PgPool>,
-    session: TypedSession,
+    user_id: web::ReqData<UserId>,
 ) -> Result<HttpResponse, actix_web::Error> {
-    let user_id = if let Some(user_id) = session.get_user_id().map_err(e500)? {
-        user_id
-    } else {
-         return Err(ChangePasswordError::Unauthorized.into());
-    };
+    let user_id = user_id.into_inner();
 
     let current_password = AdminPassword::parse(form.0.current_password.expose_secret().clone())
         .map_err(|_| ChangePasswordError::BadRequest(anyhow!("Wrong password")))?;
@@ -49,7 +43,7 @@ pub async fn change_password(
          return Err(ChangePasswordError::BadRequest(anyhow!("You entered two different new passwords - the field values must match")).into());
     }
 
-    let password_hash = if let Some(password_hash) = get_stored_password_hash(user_id, &pool)
+    let password_hash = if let Some(password_hash) = crate::authentication::get_stored_password_hash(*user_id, &pool)
         .await
         .map_err(e500)?
     {
@@ -65,7 +59,7 @@ pub async fn change_password(
         AuthError::UnexpectedError(_) => ChangePasswordError::UnexpectedError(e.into()),
     })?;
 
-    match update_password(user_id, new_password.as_ref(), &pool).await {
+    match crate::authentication::update_password(*user_id, new_password.as_ref(), &pool).await {
         Ok(_) => {
             FlashMessage::success("Successfully changed password".to_string()).send();
             Ok(see_other("/admin/change_password"))
@@ -74,63 +68,10 @@ pub async fn change_password(
     }
 }
 
-#[tracing::instrument(name = "Update password", skip(pool))]
-async fn update_password(
-    user_id: Uuid,
-    password: &Secret<String>,
-    pool: &PgPool,
-) -> Result<(), anyhow::Error> {
-    let salt = SaltString::generate(&mut rand::thread_rng());
-    let password_hash = Argon2::new(
-        Algorithm::Argon2id,
-        Version::V0x13,
-        Params::new(15000, 2, 1, None).unwrap(),
-    )
-    .hash_password(password.expose_secret().as_bytes(), &salt)
-    .unwrap()
-    .to_string();
 
-    sqlx::query!(
-        r#"
-UPDATE users
-SET password_hash = $1
-WHERE user_id = $2
-"#,
-        password_hash,
-        user_id,
-    )
-    .execute(pool)
-    .await
-    .context("Failed to perform a query to update a user password.")?;
-
-    Ok(())
-}
-
-#[tracing::instrument(name = "Get stored password hash", skip(user_id, pool))]
-async fn get_stored_password_hash(
-    user_id: Uuid,
-    pool: &PgPool,
-) -> Result<Option<Secret<String>>, anyhow::Error> {
-    let row = sqlx::query!(
-        r#"
-        SELECT password_hash
-        FROM users
-        WHERE user_id = $1
-        "#,
-        user_id,
-    )
-    .fetch_optional(pool)
-    .await
-    .context("Failed to perform a query to retrieve stored credentials.")?
-    .map(|row| Secret::new(row.password_hash));
-
-    Ok(row)
-}
 
 #[derive(thiserror::Error)]
 pub enum ChangePasswordError {
-    #[error("Not authorized")]
-    Unauthorized,
     #[error("Invalid argument")]
     BadRequest(#[source] anyhow::Error),
     #[error("Something went wrong")]
@@ -151,18 +92,11 @@ impl actix_web::error::ResponseError for ChangePasswordError {
                     .insert_header((LOCATION, "/admin/change_password"))
                     .finish()
             } 
-            ChangePasswordError::Unauthorized => {
-                FlashMessage::error("You must be logged in").send();
-                HttpResponse::SeeOther()
-                    .insert_header((LOCATION, "/login"))
-                    .finish()
-            }
         }
     }
 
     fn status_code(&self) -> StatusCode {
         match self {
-            ChangePasswordError::Unauthorized => StatusCode::FORBIDDEN,
             ChangePasswordError::BadRequest(_) => StatusCode::BAD_REQUEST,
             ChangePasswordError::UnexpectedError(_) => StatusCode::INTERNAL_SERVER_ERROR,
         }

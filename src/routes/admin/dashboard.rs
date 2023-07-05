@@ -26,6 +26,7 @@ r#"<!DOCTYPE html>
     <p>Available actions:</p>
     <ol>
         <li><a href="/admin/change_password">Change password</a></li>
+        <li><a href="/admin/newsletter">Issue a newsletter</a></li>
         <p><a href="/admin/logout">&lt;- Logout</a></p>
     </ol>
 </body>

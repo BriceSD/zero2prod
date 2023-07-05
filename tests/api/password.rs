@@ -89,7 +89,7 @@ async fn bad_new_password_is_redirected_with_error() {
     // When
     for (invalid_body, error_message) in test_cases {
         // Then
-        assert_post_redirect_with_message(&invalid_body, &error_message, &app)
+        assert_post_redirect_with_message(&invalid_body, error_message, &app)
         .await;
     }
 }

@@ -1,20 +1,39 @@
-use crate::helpers::{spawn_app, ConfirmationLinks, TestApp};
-use uuid::Uuid;
+use crate::helpers::{assert_is_redirect_to, spawn_app, ConfirmationLinks, TestApp};
 use wiremock::matchers::{any, method, path};
 use wiremock::{Mock, ResponseTemplate};
+
+#[tokio::test]
+async fn you_must_be_logged_in_to_issue_a_newsletter() {
+    // Given
+    let app = spawn_app().await;
+
+    let issue_newsletter_body = serde_json::json!({
+        "title": "Newsletter title",
+        "content_text": "Newsletter body as plain text",
+        "content_html": "<p>Newsletter body as HTML</p>",
+    });
+
+    // When
+    let response_get = app.get_issue_newsletter().await;
+    let response_post = app.post_issue_newsletter(&issue_newsletter_body).await;
+
+    // Then
+    assert_is_redirect_to(&response_get, "/login");
+    assert_is_redirect_to(&response_post, "/login");
+}
 
 #[tokio::test]
 async fn newsletters_returns_400_for_invalid_data() {
     // Given
     let app = spawn_app().await;
+    app.login_admin().await;
 
     let test_cases = vec![
         (
             serde_json::json!({
-            "content": {
-                "text": "Newsletter body as plain text",
-                "html": "<p>Newsletter body as HTML</p>",
-            } }),
+                "content_text": "Newsletter body as plain text",
+                "content_html": "<p>Newsletter body as HTML</p>",
+            }),
             "missing title",
         ),
         (
@@ -25,7 +44,7 @@ async fn newsletters_returns_400_for_invalid_data() {
 
     // When
     for (invalid_body, error_message) in test_cases {
-        let response = app.post_newsletters(invalid_body).await;
+        let response = app.post_issue_newsletter(&invalid_body).await;
 
         // Then
         assert_eq!(
@@ -41,6 +60,7 @@ async fn newsletters_returns_400_for_invalid_data() {
 async fn newsletters_are_not_delivered_to_unconfirmed_subscribers() {
     // Given
     let app = spawn_app().await;
+    app.login_admin().await;
     create_unconfirmed_subscriber(&app).await;
 
     Mock::given(any())
@@ -53,16 +73,16 @@ async fn newsletters_are_not_delivered_to_unconfirmed_subscribers() {
     // When
     let newsletter_request_body = serde_json::json!({
         "title": "Newsletter title",
-        "content": {
-            "text": "Newsletter body as plain text",
-            "html": "<p>Newsletter body as HTML</p>",
-        }
+        "content_text": "Newsletter body as plain text",
+        "content_html": "<p>Newsletter body as HTML</p>",
     });
 
-    let response = app.post_newsletters(newsletter_request_body).await;
-
-    // Then
-    assert_eq!(response.status().as_u16(), 200);
+    assert_post_redirect_with_message(
+        &newsletter_request_body,
+        "Successfully issued the newsletter",
+        &app,
+    )
+    .await;
     // Mock verifies on Drop that we haven't sent the newsletter email
 }
 
@@ -70,6 +90,7 @@ async fn newsletters_are_not_delivered_to_unconfirmed_subscribers() {
 async fn newsletters_are_delivered_to_confirmed_subscribers() {
     // Given
     let app = spawn_app().await;
+    app.login_admin().await;
     create_confirmed_subscriber(&app).await;
 
     Mock::given(any())
@@ -82,105 +103,17 @@ async fn newsletters_are_delivered_to_confirmed_subscribers() {
     // When
     let newsletter_request_body = serde_json::json!({
         "title": "Newsletter title",
-        "content": {
-            "text": "Newsletter body as plain text",
-            "html": "<p>Newsletter body as HTML</p>",
-        }
+        "content_text": "Newsletter body as plain text",
+        "content_html": "<p>Newsletter body as HTML</p>",
     });
 
-    let response = app.post_newsletters(newsletter_request_body).await;
-
-    // Then
-    assert_eq!(response.status().as_u16(), 200);
+    assert_post_redirect_with_message(
+        &newsletter_request_body,
+        "Successfully issued the newsletter",
+        &app,
+    )
+    .await;
     // Mock verifies on Drop that we sent the newsletter email
-}
-
-#[tokio::test]
-async fn requests_missing_authorization_are_rejected() {
-    // Given
-    let app = spawn_app().await;
-
-    // When
-    let response = reqwest::Client::new()
-        .post(&format!("{}/newsletters", &app.address))
-        .json(&serde_json::json!({
-            "title": "Newsletter title",
-            "content": {
-                "text": "Newsletter body as plain text",
-                "html": "<p>Newsletter body as HTML</p>",
-            }
-        }))
-        .send()
-        .await
-        .expect("Failed to execute request.");
-
-    // Then
-    assert_eq!(401, response.status().as_u16());
-    assert_eq!(
-        r#"Basic realm="publish""#,
-        response.headers()["WWW-Authenticate"]
-    );
-}
-
-#[tokio::test]
-async fn non_existing_user_is_rejected() {
-    // Given
-    let app = spawn_app().await;
-
-    // Random credentials
-    let username = Uuid::new_v4().to_string();
-    let password = Uuid::new_v4().to_string();
-    let response = reqwest::Client::new()
-        .post(&format!("{}/newsletters", &app.address))
-        .basic_auth(username, Some(password))
-        .json(&serde_json::json!({
-            "title": "Newsletter title",
-            "content": {
-                "text": "Newsletter body as plain text",
-                "html": "<p>Newsletter body as HTML</p>",
-            }
-        }))
-        .send()
-        .await
-        .expect("Failed to execute request.");
-
-    // Then
-    assert_eq!(401, response.status().as_u16());
-    assert_eq!(
-        r#"Basic realm="publish""#,
-        response.headers()["WWW-Authenticate"]
-    );
-}
-
-#[tokio::test]
-async fn invalid_password_is_rejected() {
-    // Given
-    let app = spawn_app().await;
-    let username = &app.test_user.username;
-    // Random password
-    let password = Uuid::new_v4().to_string();
-    assert_ne!(app.test_user.password, password);
-
-    let response = reqwest::Client::new()
-        .post(&format!("{}/newsletters", &app.address))
-        .basic_auth(username, Some(password))
-        .json(&serde_json::json!({
-        "title": "Newsletter title",
-        "content": {
-        "text": "Newsletter body as plain text",
-        "html": "<p>Newsletter body as HTML</p>",
-        }
-        }))
-        .send()
-        .await
-        .expect("Failed to execute request.");
-
-    // Then
-    assert_eq!(401, response.status().as_u16());
-    assert_eq!(
-        r#"Basic realm="publish""#,
-        response.headers()["WWW-Authenticate"]
-    );
 }
 
 /// Use the public API of the application under test to create
@@ -223,4 +156,18 @@ async fn create_confirmed_subscriber(app: &TestApp) {
         .unwrap()
         .error_for_status()
         .unwrap();
+}
+
+async fn assert_post_redirect_with_message(
+    body: &serde_json::value::Value,
+    message: &str,
+    app: &TestApp,
+) {
+    // Issue the newsletter
+    let response = app.post_issue_newsletter(&body).await;
+    assert_is_redirect_to(&response, "/admin/newsletter");
+
+    // Follow the redirect
+    let html_page = app.get_issue_newsletter_html().await;
+    assert!(html_page.contains(message));
 }

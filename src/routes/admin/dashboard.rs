@@ -3,7 +3,7 @@ use anyhow::Context;
 use sqlx::PgPool;
 use uuid::Uuid;
 
-use crate::{utils::e500, authentication::UserId};
+use crate::{authentication::UserId, utils::e500};
 
 pub async fn admin_dashboard(
     pool: web::Data<PgPool>,
@@ -13,9 +13,9 @@ pub async fn admin_dashboard(
     let username = get_username(*user_id, &pool).await.map_err(e500)?;
 
     Ok(HttpResponse::Ok()
-    .content_type(ContentType::html())
-    .body(format!(
-r#"<!DOCTYPE html>
+        .content_type(ContentType::html())
+        .body(format!(
+            r#"<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta http-equiv="content-type" content="text/html; charset=utf-8">
@@ -31,7 +31,7 @@ r#"<!DOCTYPE html>
     </ol>
 </body>
 </html>"#,
-    )))
+        )))
 }
 
 #[tracing::instrument(name = "Get username", skip(pool))]

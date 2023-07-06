@@ -1,95 +1,129 @@
 use crate::{
-    domain::SubscriberEmail, email_client::EmailClient,
-    routes::error_chain_fmt, utils::see_other,
+    authentication::UserId,
+    idempotency::{save_response, try_processing, IdempotencyKey, NextAction},
+    routes::error_chain_fmt,
+    utils::{e400, e500, see_other},
 };
-use actix_web::http::StatusCode;
 use actix_web::HttpResponse;
+use actix_web::{http::StatusCode, web::ReqData};
 use actix_web_flash_messages::FlashMessage;
 use anyhow::Context;
-use sqlx::PgPool;
+use sqlx::{PgPool, Postgres, Transaction};
+use uuid::Uuid;
 
 #[derive(serde::Deserialize, std::fmt::Debug)]
 pub struct FormData {
     title: String,
     content_html: String,
     content_text: String,
-}
-
-pub struct ConfirmedSubscriber {
-    email: SubscriberEmail,
+    idempotency_key: String,
 }
 
 #[tracing::instrument(
     name = "Publish a newsletter issue",
-    skip(body, pool, email_client),
-    fields(username=tracing::field::Empty, user_id=tracing::field::Empty)
+    skip_all,
+    fields(user_id=%&*user_id)
 )]
 pub async fn issue_newsletter(
-    body: actix_web::web::Form<FormData>,
+    form: actix_web::web::Form<FormData>,
     pool: actix_web::web::Data<PgPool>,
-    email_client: actix_web::web::Data<EmailClient>,
-) -> Result<HttpResponse, PublishError> {
-    let subscribers = retrieve_confirmed_subscribers(&pool).await?;
+    user_id: ReqData<UserId>,
+) -> Result<HttpResponse, actix_web::Error> {
+    let FormData {
+        title,
+        content_text,
+        content_html,
+        idempotency_key,
+    } = form.0;
+    let user_id = user_id.into_inner();
+    let idempotency_key: IdempotencyKey = idempotency_key.try_into().map_err(e400)?;
 
-    for subscriber in subscribers {
-        // The compiler forces us to handle both the happy and unhappy case
-        match subscriber {
-            Ok(subscriber) => {
-                email_client
-                    .send_email(
-                        &subscriber.email,
-                        &body.title,
-                        &body.content_html,
-                        &body.content_text,
-                    )
-                    .await
-                    .with_context(|| {
-                        format!("Failed to send newsletter issue to {}", subscriber.email)
-                    })?;
-            }
-            Err(error) => {
-                tracing::warn!(
-                // We record the error chain as a structured field
-                // on the log record.
-                error.cause_chain = ?error,
-                "Skipping a confirmed subscriber. \
-                Their stored contact details are invalid",
-                );
-            }
+    let mut transaction = match try_processing(&pool, &idempotency_key, *user_id)
+        .await
+        .map_err(e500)?
+    {
+        NextAction::StartProcessing(t) => t,
+        NextAction::ReturnSavedResponse(saved_response) => {
+            success_message().send();
+            return Ok(saved_response);
         }
-    }
+    };
 
-    FlashMessage::success("Successfully issued the newsletter".to_string()).send();
-    Ok(see_other("/admin/newsletter"))
+    let issue_id = insert_newsletter_issue(&mut transaction, &title, &content_text, &content_html)
+        .await
+        .context("Failed to store newsletter issue details")
+        .map_err(e500)?;
+
+    enqueue_delivery_tasks(&mut transaction, issue_id)
+        .await
+        .context("Failed to enqueue delivery tasks")
+        .map_err(e500)?;
+
+    let response = see_other("/admin/newsletter");
+    let response = save_response(transaction, &idempotency_key, *user_id, response)
+        .await
+        .map_err(e500)?;
+
+    success_message().send();
+    Ok(response)
 }
 
-
-#[tracing::instrument(name = "Get confirmed subscribers", skip(pool))]
-pub async fn retrieve_confirmed_subscribers(
-    pool: &PgPool,
-    // We are returning a `Vec` of `Result`s in the happy case.
-    // This allows the caller to bubble up errors due to network issues or other
-    // transient failures using the `?` operator, while the compiler
-    // forces them to handle the subtler mapping error.
-    // See http://sled.rs/errors.html for a deep-dive about this technique.
-) -> Result<Vec<Result<ConfirmedSubscriber, anyhow::Error>>, anyhow::Error> {
-    let confirmed_subscribers = sqlx::query!(
+#[tracing::instrument(skip_all)]
+async fn insert_newsletter_issue(
+    transaction: &mut Transaction<'_, Postgres>,
+    title: &str,
+    text_content: &str,
+    html_content: &str,
+) -> Result<Uuid, sqlx::Error> {
+    let newsletter_issue_id = Uuid::new_v4();
+    sqlx::query!(
         r#"
-        SELECT email
-        FROM subscriptions
-        WHERE status = 'confirmed'
-        "#,
+INSERT INTO newsletter_issues (
+    newsletter_issue_id,
+    title,
+    text_content,
+    html_content,
+    published_at
+)
+VALUES ($1, $2, $3, $4, now())
+"#,
+        newsletter_issue_id,
+        title,
+        text_content,
+        html_content
     )
-    .fetch_all(pool)
-    .await?
-    .into_iter()
-    .map(|r| match SubscriberEmail::parse(r.email) {
-        Ok(email) => Ok(ConfirmedSubscriber { email }),
-        Err(error) => Err(anyhow::anyhow!(error)),
-    })
-    .collect();
+    .execute(transaction)
+    .await?;
+    Ok(newsletter_issue_id)
+}
 
-    Ok(confirmed_subscribers)
+#[tracing::instrument(skip_all)]
+async fn enqueue_delivery_tasks(
+    transaction: &mut Transaction<'_, Postgres>,
+    newsletter_issue_id: Uuid,
+) -> Result<(), sqlx::Error> {
+    sqlx::query!(
+        r#"
+INSERT INTO issue_delivery_queue (
+    newsletter_issue_id,
+    subscriber_email
+)
+SELECT $1, email
+FROM subscriptions
+WHERE status = 'confirmed'
+"#,
+        newsletter_issue_id,
+    )
+    .execute(transaction)
+    .await?;
+    Ok(())
+}
+
+fn success_message() -> FlashMessage {
+    FlashMessage::info(
+        "The newsletter issue has been accepted - \
+        emails will go out shortly.",
+    )
 }
 
 #[derive(thiserror::Error)]
@@ -112,9 +146,7 @@ impl actix_web::ResponseError for PublishError {
             PublishError::UnexpectedError(_) => {
                 HttpResponse::new(StatusCode::INTERNAL_SERVER_ERROR)
             }
-            PublishError::AuthError(_) => {
-                HttpResponse::new(StatusCode::UNAUTHORIZED)
-            }
+            PublishError::AuthError(_) => HttpResponse::new(StatusCode::UNAUTHORIZED),
         }
     }
 }

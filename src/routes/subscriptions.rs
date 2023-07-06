@@ -1,15 +1,16 @@
 //! src/routes/subscriptions.rs
 
 use actix_web::{web, HttpResponse};
+use anyhow::Context;
 use chrono::Utc;
 use rand::{distributions::Alphanumeric, thread_rng, Rng};
 use sqlx::{types::Uuid, PgPool, Postgres, Transaction};
-use anyhow::Context;
 
 use crate::{
     domain::{NewSubscriber, SubscriberEmail, SubscriberName},
     email_client::EmailClient,
-    startup::ApplicationBaseUrl, routes::error_chain_fmt,
+    routes::error_chain_fmt,
+    startup::ApplicationBaseUrl,
 };
 
 #[derive(Debug, serde::Deserialize)]
@@ -97,9 +98,7 @@ async fn store_token(
     )
     .execute(transaction)
     .await
-    .map_err(|e| {
-        StoreTokenError(e)
-    })?;
+    .map_err(|e| StoreTokenError(e))?;
 
     Ok(())
 }

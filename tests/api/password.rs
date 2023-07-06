@@ -21,10 +21,9 @@ async fn you_must_be_logged_in_to_reset_password() {
     // Then
     assert_is_redirect_to(&response, "/login");
 
-
     // When - Change Password
     let response = app.post_change_password(&change_password_body).await;
-    
+
     // Then
     assert_is_redirect_to(&response, "/login");
 }
@@ -43,8 +42,12 @@ async fn new_passwords_should_match() {
     });
 
     // When change, then
-    assert_post_redirect_with_message(&change_password_body, "You entered two different new passwords - the field values must match", &app)
-        .await;
+    assert_post_redirect_with_message(
+        &change_password_body,
+        "You entered two different new passwords - the field values must match",
+        &app,
+    )
+    .await;
 }
 
 #[tokio::test]
@@ -89,8 +92,7 @@ async fn bad_new_password_is_redirected_with_error() {
     // When
     for (invalid_body, error_message) in test_cases {
         // Then
-        assert_post_redirect_with_message(&invalid_body, error_message, &app)
-        .await;
+        assert_post_redirect_with_message(&invalid_body, error_message, &app).await;
     }
 }
 

@@ -9,10 +9,10 @@ use sqlx::{
     ConnectOptions,
 };
 
-use crate::domain::SubscriberEmail;
+use crate::{domain::SubscriberEmail, email_client::EmailClient};
 
 #[derive(serde::Deserialize, Clone)]
-pub struct Setting {
+pub struct Settings {
     pub database: DatabaseSettings,
     pub application: ApplicationSettings,
     pub email_client: EmailClientSettings,
@@ -48,8 +48,23 @@ pub struct DatabaseSettings {
 }
 
 impl EmailClientSettings {
+    pub fn client(self) -> EmailClient {
+        let sender_email = self.sender().expect("Invalid sender email address.");
+        let timeout = self.timeout();
+        EmailClient::new(
+            self.base_url,
+            sender_email,
+            self.authorization_token,
+            timeout,
+        )
+    }
+
     pub fn sender(&self) -> Result<SubscriberEmail, String> {
         SubscriberEmail::parse(self.sender_email.clone())
+    }
+
+    pub fn timeout(&self) -> std::time::Duration {
+        std::time::Duration::from_millis(self.timeout_milliseconds)
     }
 }
 
@@ -77,7 +92,7 @@ impl DatabaseSettings {
     }
 }
 
-pub fn get_configuration() -> Result<Setting, config::ConfigError> {
+pub fn get_configuration() -> Result<Settings, config::ConfigError> {
     let base_path = std::env::current_dir().expect("Failed to determine the current directory");
     let configuration_directory = base_path.join("configuration");
 

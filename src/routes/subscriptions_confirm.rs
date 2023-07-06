@@ -37,7 +37,6 @@ impl std::error::Error for ParseTokenError {
     }
 }
 
-
 impl std::fmt::Display for ParseTokenError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
@@ -64,9 +63,9 @@ pub async fn confirm(
     parameters: web::Query<Parameters>,
     pool: web::Data<PgPool>,
 ) -> Result<HttpResponse, ConfirmSubscriptionError> {
-    let token = SubscriberToken::parse(parameters.0.subscription_token) 
+    let token = SubscriberToken::parse(parameters.0.subscription_token)
         .map_err(ConfirmSubscriptionError::InvalidTokenFormat)?;
-        
+
     let subscriber_id = get_subscriber_id_from_token(&pool, &token)
         .await
         .context("Failed to retrieve subscriber for associated token")?

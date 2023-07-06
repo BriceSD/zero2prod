@@ -1,4 +1,3 @@
-//! src/email_client.rs
 use reqwest::Client;
 use secrecy::{ExposeSecret, Secret};
 
@@ -19,11 +18,7 @@ impl EmailClient {
         authorization_token: Secret<String>,
         timeout: std::time::Duration,
     ) -> Self {
-
-        let http_client = Client::builder()
-            .timeout(timeout)
-            .build()
-            .unwrap();
+        let http_client = Client::builder().timeout(timeout).build().unwrap();
 
         Self {
             http_client,
@@ -124,7 +119,12 @@ mod tests {
 
     /// Get a test instance of `EmailClient`.
     fn email_client(base_url: String) -> EmailClient {
-        EmailClient::new(base_url, email(), Secret::new(Faker.fake()), std::time::Duration::from_millis(200))
+        EmailClient::new(
+            base_url,
+            email(),
+            Secret::new(Faker.fake()),
+            std::time::Duration::from_millis(200),
+        )
     }
 
     #[tokio::test]

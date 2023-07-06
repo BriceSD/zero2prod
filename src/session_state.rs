@@ -1,7 +1,7 @@
-use std::future::{Ready, ready};
+use std::future::{ready, Ready};
 
-use actix_session::{Session, SessionExt, SessionInsertError, SessionGetError};
-use actix_web::{FromRequest, HttpRequest, dev::Payload};
+use actix_session::{Session, SessionExt, SessionGetError, SessionInsertError};
+use actix_web::{dev::Payload, FromRequest, HttpRequest};
 use uuid::Uuid;
 
 pub struct TypedSession(Session);
@@ -20,7 +20,7 @@ impl TypedSession {
     pub fn logout(&self) {
         self.0.purge()
     }
-    
+
     pub fn get_user_id(&self) -> Result<Option<Uuid>, SessionGetError> {
         self.0.get(Self::USER_ID_KEY)
     }

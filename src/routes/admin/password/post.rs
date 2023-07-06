@@ -1,3 +1,4 @@
+use crate::authentication::UserId;
 use actix_web::HttpResponse;
 use actix_web::{http::header::LOCATION, web};
 use actix_web_flash_messages::FlashMessage;
@@ -5,7 +6,6 @@ use anyhow::anyhow;
 use reqwest::StatusCode;
 use secrecy::{ExposeSecret, Secret};
 use sqlx::PgPool;
-use crate::authentication::UserId;
 
 use crate::{
     authentication::{verify_password_hash, AuthError},
@@ -35,17 +35,22 @@ pub async fn change_password(
     let current_password = AdminPassword::parse(form.0.current_password.expose_secret().clone())
         .map_err(|_| ChangePasswordError::BadRequest(anyhow!("Wrong password")))?;
     let new_password = AdminPassword::parse(form.0.new_password.expose_secret().clone())
-        .map_err(ChangePasswordError::BadRequest)?;    
-    let new_password_confirmation = AdminPassword::parse(form.0.new_password_confirmation.expose_secret().clone())
         .map_err(ChangePasswordError::BadRequest)?;
+    let new_password_confirmation =
+        AdminPassword::parse(form.0.new_password_confirmation.expose_secret().clone())
+            .map_err(ChangePasswordError::BadRequest)?;
 
     if new_password.as_ref().expose_secret() != new_password_confirmation.as_ref().expose_secret() {
-         return Err(ChangePasswordError::BadRequest(anyhow!("You entered two different new passwords - the field values must match")).into());
+        return Err(ChangePasswordError::BadRequest(anyhow!(
+            "You entered two different new passwords - the field values must match"
+        ))
+        .into());
     }
 
-    let password_hash = if let Some(password_hash) = crate::authentication::get_stored_password_hash(*user_id, &pool)
-        .await
-        .map_err(e500)?
+    let password_hash = if let Some(password_hash) =
+        crate::authentication::get_stored_password_hash(*user_id, &pool)
+            .await
+            .map_err(e500)?
     {
         password_hash
     } else {
@@ -68,8 +73,6 @@ pub async fn change_password(
     }
 }
 
-
-
 #[derive(thiserror::Error)]
 pub enum ChangePasswordError {
     #[error("Invalid argument")]
@@ -87,11 +90,9 @@ impl actix_web::error::ResponseError for ChangePasswordError {
                     .insert_header((LOCATION, "/admin/change_password"))
                     .finish()
             }
-            ChangePasswordError::UnexpectedError(_) => {
-                HttpResponse::build(self.status_code())
-                    .insert_header((LOCATION, "/admin/change_password"))
-                    .finish()
-            } 
+            ChangePasswordError::UnexpectedError(_) => HttpResponse::build(self.status_code())
+                .insert_header((LOCATION, "/admin/change_password"))
+                .finish(),
         }
     }
 

@@ -1,5 +1,5 @@
 use anyhow::Context;
-use argon2::{Argon2, PasswordHash, PasswordVerifier, password_hash::SaltString, PasswordHasher};
+use argon2::{password_hash::SaltString, Argon2, PasswordHash, PasswordHasher, PasswordVerifier};
 use secrecy::{ExposeSecret, Secret};
 use sqlx::PgPool;
 use uuid::Uuid;

@@ -15,7 +15,9 @@ impl AdminPassword {
         } else if is_too_short {
             Err(anyhow!("Invalid password, too short"))
         } else if is_empty_or_whitespace {
-            Err(anyhow!("Invalid password, can't be empty or only whitespaces"))
+            Err(anyhow!(
+                "Invalid password, can't be empty or only whitespaces"
+            ))
         } else {
             Ok(Self(Secret::new(password)))
         }

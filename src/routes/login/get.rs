@@ -40,5 +40,6 @@ pub async fn login_form(flash_messages: IncomingFlashMessages) -> HttpResponse {
 </body>
 </html>
 "#,
-            messages_html))
+            messages_html
+        ))
 }

@@ -1,13 +1,13 @@
+mod admin;
 pub mod health_check;
-pub mod subscriptions;
-pub mod subscriptions_confirm;
 mod home;
 mod login;
-mod admin;
+pub mod subscriptions;
+pub mod subscriptions_confirm;
 
+pub use admin::*;
 pub use health_check::*;
-pub use subscriptions::*;
-pub use subscriptions_confirm::*;
 pub use home::*;
 pub use login::*;
-pub use admin::*;
+pub use subscriptions::*;
+pub use subscriptions_confirm::*;

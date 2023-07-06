@@ -2,14 +2,18 @@ use actix_web::{http::header::ContentType, HttpResponse};
 use actix_web_flash_messages::IncomingFlashMessages;
 use std::fmt::Write;
 
-pub async fn change_password_form(flash_messages: IncomingFlashMessages) -> Result<HttpResponse, actix_web::Error> {
+pub async fn change_password_form(
+    flash_messages: IncomingFlashMessages,
+) -> Result<HttpResponse, actix_web::Error> {
     let mut messages_html = String::new();
     for m in flash_messages.iter() {
         writeln!(messages_html, "<p><i>{}</i></p>", m.content()).unwrap();
     }
 
-    Ok(HttpResponse::Ok().content_type(ContentType::html()).body(format!(
-        r#"<!DOCTYPE html>
+    Ok(HttpResponse::Ok()
+        .content_type(ContentType::html())
+        .body(format!(
+            r#"<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta http-equiv="content-type" content="text/html; charset=utf-8">
@@ -47,6 +51,5 @@ name="new_password_confirmation"
 <p><a href="/admin/dashboard">&lt;- Back</a></p>
 </body>
 </html>"#,
-    ))
-        )
+        )))
 }

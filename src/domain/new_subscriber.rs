@@ -1,4 +1,4 @@
-use crate::domain::{SubscriberName, SubscriberEmail};
+use crate::domain::{SubscriberEmail, SubscriberName};
 
 #[derive(Debug)]
 pub struct NewSubscriber {

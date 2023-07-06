@@ -5,9 +5,7 @@ use fake::{
     faker::{internet::en::SafeEmail, name::en::Name},
     Fake,
 };
-use wiremock::{
-    matchers::{any, method, path},
-};
+use wiremock::matchers::{any, method, path};
 use wiremock::{Mock, ResponseTemplate};
 
 const PUBLISH_SUCCESS_MESSAGE: &str = "<p><i>The newsletter issue has been accepted - \
@@ -224,7 +222,7 @@ async fn create_unconfirmed_subscriber(app: &TestApp) -> ConfirmationLinks {
         "name": name,
         "email": email
     }))
-        .unwrap();
+    .unwrap();
 
     let _mock_guard = Mock::given(path("/email"))
         .and(method("POST"))

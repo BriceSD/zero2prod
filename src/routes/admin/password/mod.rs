@@ -3,4 +3,3 @@ pub use post::change_password;
 
 mod get;
 mod post;
-

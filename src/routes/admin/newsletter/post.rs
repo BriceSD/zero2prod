@@ -1,5 +1,5 @@
-use actix_web::{http::StatusCode, web::ReqData};
 use actix_web::HttpResponse;
+use actix_web::{http::StatusCode, web::ReqData};
 use actix_web_flash_messages::FlashMessage;
 use anyhow::Context;
 use sqlx::{PgPool, Postgres, Transaction};
@@ -7,7 +7,7 @@ use uuid::Uuid;
 
 use crate::{
     authentication::UserId,
-    idempotency::{IdempotencyKey, NextAction, save_response, try_processing},
+    idempotency::{save_response, try_processing, IdempotencyKey, NextAction},
     routes::error_chain_fmt,
     utils::{e400, e500, see_other},
 };
@@ -93,8 +93,8 @@ VALUES ($1, $2, $3, $4, now())
         text_content,
         html_content
     )
-        .execute(transaction)
-        .await?;
+    .execute(transaction)
+    .await?;
     Ok(newsletter_issue_id)
 }
 
@@ -115,8 +115,8 @@ WHERE status = 'confirmed'
 "#,
         newsletter_issue_id,
     )
-        .execute(transaction)
-        .await?;
+    .execute(transaction)
+    .await?;
     Ok(())
 }
 

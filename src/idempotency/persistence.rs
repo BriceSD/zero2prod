@@ -1,6 +1,6 @@
 use actix_web::{body::to_bytes, HttpResponse};
 use reqwest::StatusCode;
-use sqlx::{PgPool, Postgres, postgres::PgHasArrayType, Transaction};
+use sqlx::{postgres::PgHasArrayType, PgPool, Postgres, Transaction};
 use uuid::Uuid;
 
 use super::IdempotencyKey;
@@ -42,9 +42,9 @@ ON CONFLICT DO NOTHING
         user_id,
         idempotency_key.as_ref()
     )
-        .execute(&mut transaction)
-        .await?
-        .rows_affected();
+    .execute(&mut transaction)
+    .await?
+    .rows_affected();
 
     if n_inserted_rows > 0 {
         Ok(NextAction::StartProcessing(transaction))
@@ -75,8 +75,8 @@ WHERE
         user_id,
         idempotency_key.as_ref()
     )
-        .fetch_optional(pool)
-        .await?;
+    .fetch_optional(pool)
+    .await?;
 
     if let Some(r) = saved_response {
         let status_code = StatusCode::from_u16(r.response_status_code.try_into()?)?;
@@ -126,8 +126,8 @@ WHERE
         headers,
         body.as_ref()
     )
-        .execute(&mut transaction)
-        .await?;
+    .execute(&mut transaction)
+    .await?;
 
     transaction.commit().await?;
 

@@ -47,7 +47,7 @@ async fn new_passwords_should_match() {
         "You entered two different new passwords - the field values must match",
         &app,
     )
-        .await;
+    .await;
 }
 
 #[tokio::test]
@@ -122,9 +122,9 @@ async fn logged_in_user_can_reset_password() {
         "#,
         &app.test_user.user_id
     )
-        .fetch_one(&app.db_pool)
-        .await
-        .expect("Failed to fetch saved subscription.");
+    .fetch_one(&app.db_pool)
+    .await
+    .expect("Failed to fetch saved subscription.");
 
     assert_ok!(verify_password_hash(
         &Secret::new(saved.password_hash),

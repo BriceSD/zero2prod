@@ -5,8 +5,8 @@ use config::Config;
 use secrecy::{ExposeSecret, Secret};
 use serde_aux::prelude::deserialize_number_from_string;
 use sqlx::{
-    ConnectOptions,
     postgres::{PgConnectOptions, PgSslMode},
+    ConnectOptions,
 };
 
 use crate::{domain::SubscriberEmail, email_client::EmailClient};

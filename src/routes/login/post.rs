@@ -6,7 +6,7 @@ use secrecy::Secret;
 use sqlx::PgPool;
 
 use crate::{
-    authentication::{AuthError, Credentials, validate_credentials},
+    authentication::{validate_credentials, AuthError, Credentials},
     routes::error_chain_fmt,
     session_state::TypedSession,
 };

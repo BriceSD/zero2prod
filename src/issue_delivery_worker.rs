@@ -36,8 +36,8 @@ newsletter_issue_id = $1
 "#,
         issue_id
     )
-        .fetch_one(pool)
-        .await?;
+    .fetch_one(pool)
+    .await?;
     Ok(issue)
 }
 
@@ -113,8 +113,8 @@ SKIP LOCKED
 LIMIT 1
 "#,
     )
-        .fetch_optional(&mut transaction)
-        .await?;
+    .fetch_optional(&mut transaction)
+    .await?;
 
     if let Some(r) = r {
         Ok(Some((
@@ -143,8 +143,8 @@ subscriber_email = $2
         issue_id,
         email
     )
-        .execute(&mut transaction)
-        .await?;
+    .execute(&mut transaction)
+    .await?;
     transaction.commit().await?;
     Ok(())
 }

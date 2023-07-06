@@ -1,5 +1,5 @@
 use anyhow::Context;
-use argon2::{Argon2, password_hash::SaltString, PasswordHash, PasswordHasher, PasswordVerifier};
+use argon2::{password_hash::SaltString, Argon2, PasswordHash, PasswordHasher, PasswordVerifier};
 use secrecy::{ExposeSecret, Secret};
 use sqlx::PgPool;
 use uuid::Uuid;
@@ -12,8 +12,8 @@ pub struct Credentials {
 }
 
 #[tracing::instrument(
-name = "Verify password hash",
-skip(expected_password_hash, password_candidate)
+    name = "Verify password hash",
+    skip(expected_password_hash, password_candidate)
 )]
 pub fn verify_password_hash(
     expected_password_hash: &Secret<String>,
@@ -54,8 +54,8 @@ pub async fn validate_credentials(
     spawn_blocking_with_tracing(move || {
         verify_password_hash(&expected_password_hash, &credentials.password)
     })
-        .await
-        .context("Failed to spawn blocking task.")??;
+    .await
+    .context("Failed to spawn blocking task.")??;
 
     // This is only set to `Some` if we found credentials in the store
     // So, even if the default password ends up matching (somehow)
@@ -78,9 +78,9 @@ pub async fn update_password(
         argon2::Version::V0x13,
         argon2::Params::new(15000, 2, 1, None).unwrap(),
     )
-        .hash_password(password.expose_secret().as_bytes(), &salt)
-        .unwrap()
-        .to_string();
+    .hash_password(password.expose_secret().as_bytes(), &salt)
+    .unwrap()
+    .to_string();
 
     sqlx::query!(
         r#"
@@ -91,9 +91,9 @@ WHERE user_id = $2
         password_hash,
         user_id,
     )
-        .execute(pool)
-        .await
-        .context("Failed to perform a query to update a user password.")?;
+    .execute(pool)
+    .await
+    .context("Failed to perform a query to update a user password.")?;
 
     Ok(())
 }
@@ -111,10 +111,10 @@ pub async fn get_stored_password_hash(
         "#,
         user_id,
     )
-        .fetch_optional(pool)
-        .await
-        .context("Failed to perform a query to retrieve stored credentials.")?
-        .map(|row| Secret::new(row.password_hash));
+    .fetch_optional(pool)
+    .await
+    .context("Failed to perform a query to retrieve stored credentials.")?
+    .map(|row| Secret::new(row.password_hash));
 
     Ok(row)
 }
@@ -132,10 +132,10 @@ async fn get_stored_credentials(
         "#,
         username,
     )
-        .fetch_optional(pool)
-        .await
-        .context("Failed to perform a query to retrieve stored credentials.")?
-        .map(|row| (row.user_id, Secret::new(row.password_hash)));
+    .fetch_optional(pool)
+    .await
+    .context("Failed to perform a query to retrieve stored credentials.")?
+    .map(|row| (row.user_id, Secret::new(row.password_hash)));
     Ok(row)
 }
 

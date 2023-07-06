@@ -9,4 +9,3 @@ mod dashboard;
 mod logout;
 mod newsletter;
 mod password;
-

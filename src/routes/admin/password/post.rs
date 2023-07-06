@@ -1,18 +1,18 @@
-use actix_web::{http::header::LOCATION, web};
 use actix_web::HttpResponse;
+use actix_web::{http::header::LOCATION, web};
 use actix_web_flash_messages::FlashMessage;
 use anyhow::anyhow;
 use reqwest::StatusCode;
 use secrecy::{ExposeSecret, Secret};
 use sqlx::PgPool;
 
+use crate::authentication::UserId;
 use crate::{
-    authentication::{AuthError, verify_password_hash},
+    authentication::{verify_password_hash, AuthError},
     domain::AdminPassword,
     routes::error_chain_fmt,
     utils::{e500, see_other},
 };
-use crate::authentication::UserId;
 
 #[derive(serde::Deserialize)]
 pub struct FormData {
@@ -44,7 +44,7 @@ pub async fn change_password(
         return Err(ChangePasswordError::BadRequest(anyhow!(
             "You entered two different new passwords - the field values must match"
         ))
-            .into());
+        .into());
     }
 
     let password_hash = if let Some(password_hash) =

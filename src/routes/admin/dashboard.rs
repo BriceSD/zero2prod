@@ -1,4 +1,4 @@
-use actix_web::{http::header::ContentType, HttpResponse, web};
+use actix_web::{http::header::ContentType, web, HttpResponse};
 use anyhow::Context;
 use sqlx::PgPool;
 use uuid::Uuid;
@@ -44,9 +44,9 @@ WHERE user_id = $1
 "#,
         user_id,
     )
-        .fetch_one(pool)
-        .await
-        .context("Failed to perform a query to retrieve a username.")?;
+    .fetch_one(pool)
+    .await
+    .context("Failed to perform a query to retrieve a username.")?;
 
     Ok(row.username)
 }

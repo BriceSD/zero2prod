@@ -76,14 +76,15 @@ struct SendEmailRequest<'a> {
 
 #[cfg(test)]
 mod tests {
-    use crate::domain::SubscriberEmail;
-    use crate::email_client::EmailClient;
+    use fake::{Fake, Faker};
     use fake::faker::internet::en::SafeEmail;
     use fake::faker::lorem::en::{Paragraph, Sentence};
-    use fake::{Fake, Faker};
     use secrecy::Secret;
-    use wiremock::matchers::{any, header, header_exists, method, path};
     use wiremock::{Mock, MockServer, ResponseTemplate};
+    use wiremock::matchers::{any, header, header_exists, method, path};
+
+    use crate::domain::SubscriberEmail;
+    use crate::email_client::EmailClient;
 
     struct SendEmailBodyMatcher;
 

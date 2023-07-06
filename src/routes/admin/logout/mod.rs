@@ -1,3 +1,4 @@
+pub use get::logout;
+
 mod get;
 
-pub use get::logout;

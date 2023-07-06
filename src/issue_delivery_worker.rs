@@ -1,9 +1,10 @@
-use std::time::Duration;
-use crate::{configuration::Settings, startup::get_connection_pool};
-use crate::{domain::SubscriberEmail, email_client::EmailClient};
 use sqlx::{PgPool, Postgres, Transaction};
+use std::time::Duration;
 use tracing::{field::display, Span};
 use uuid::Uuid;
+
+use crate::{configuration::Settings, startup::get_connection_pool};
+use crate::{domain::SubscriberEmail, email_client::EmailClient};
 
 struct NewsletterIssue {
     title: String,
@@ -35,18 +36,18 @@ newsletter_issue_id = $1
 "#,
         issue_id
     )
-    .fetch_one(pool)
-    .await?;
+        .fetch_one(pool)
+        .await?;
     Ok(issue)
 }
 
 #[tracing::instrument(
-    skip_all,
-    fields(
-        newsletter_issue_id=tracing::field::Empty,
-        subscriber_email=tracing::field::Empty
-    ),
-    err
+skip_all,
+fields(
+newsletter_issue_id = tracing::field::Empty,
+subscriber_email = tracing::field::Empty
+),
+err
 )]
 pub async fn try_execute_task(
     pool: &PgPool,
@@ -112,8 +113,8 @@ SKIP LOCKED
 LIMIT 1
 "#,
     )
-    .fetch_optional(&mut transaction)
-    .await?;
+        .fetch_optional(&mut transaction)
+        .await?;
 
     if let Some(r) = r {
         Ok(Some((
@@ -142,8 +143,8 @@ subscriber_email = $2
         issue_id,
         email
     )
-    .execute(&mut transaction)
-    .await?;
+        .execute(&mut transaction)
+        .await?;
     transaction.commit().await?;
     Ok(())
 }

@@ -1,10 +1,10 @@
 //! src/routes/subscriptions.rs
 
-use actix_web::{web, HttpResponse};
+use actix_web::{HttpResponse, web};
 use anyhow::Context;
 use chrono::Utc;
-use rand::{distributions::Alphanumeric, thread_rng, Rng};
-use sqlx::{types::Uuid, PgPool, Postgres, Transaction};
+use rand::{distributions::Alphanumeric, Rng, thread_rng};
+use sqlx::{PgPool, Postgres, Transaction, types::Uuid};
 
 use crate::{
     domain::{NewSubscriber, SubscriberEmail, SubscriberName},
@@ -39,12 +39,12 @@ fn generate_subscription_token() -> String {
 }
 
 #[tracing::instrument(
-    name = "Adding a new subscriber",
-    skip(form, pool),
-    fields(
-            subscriber_email = %form.email,
-            subscriber_name = %form.name,
-    )
+name = "Adding a new subscriber",
+skip(form, pool),
+fields(
+subscriber_email = % form.email,
+subscriber_name = % form.name,
+)
 )]
 pub async fn subscribe(
     form: web::Form<FormData>,
@@ -96,16 +96,16 @@ async fn store_token(
         &token,
         &subscriber_id,
     )
-    .execute(transaction)
-    .await
-    .map_err(|e| StoreTokenError(e))?;
+        .execute(transaction)
+        .await
+        .map_err(|e| StoreTokenError(e))?;
 
     Ok(())
 }
 
 #[tracing::instrument(
-    name = "Saving new subscriber details in the database",
-    skip(new_subscriber, transaction)
+name = "Saving new subscriber details in the database",
+skip(new_subscriber, transaction)
 )]
 async fn insert_subscriber(
     new_subscriber: &NewSubscriber,
@@ -123,15 +123,15 @@ async fn insert_subscriber(
         new_subscriber.name.as_ref(),
         Utc::now()
     )
-    .execute(transaction)
-    .await?;
+        .execute(transaction)
+        .await?;
 
     Ok(id)
 }
 
 #[tracing::instrument(
-    name = "Send a confirmation email to a new subscriber",
-    skip(email_client, new_subscriber, base_url)
+name = "Send a confirmation email to a new subscriber",
+skip(email_client, new_subscriber, base_url)
 )]
 pub async fn send_confirmation_email(
     email_client: &EmailClient,

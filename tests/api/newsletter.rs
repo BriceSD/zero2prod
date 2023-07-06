@@ -7,7 +7,6 @@ use fake::{
 };
 use wiremock::{
     matchers::{any, method, path},
-    MockBuilder,
 };
 use wiremock::{Mock, ResponseTemplate};
 
@@ -225,7 +224,7 @@ async fn create_unconfirmed_subscriber(app: &TestApp) -> ConfirmationLinks {
         "name": name,
         "email": email
     }))
-    .unwrap();
+        .unwrap();
 
     let _mock_guard = Mock::given(path("/email"))
         .and(method("POST"))
@@ -250,7 +249,6 @@ async fn create_unconfirmed_subscriber(app: &TestApp) -> ConfirmationLinks {
 
     app.get_confirmation_links(email_request)
 }
-
 
 /// Use the public API of the application under test to create
 /// a confirmed subscriber.

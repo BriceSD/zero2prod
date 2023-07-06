@@ -1,12 +1,11 @@
-use std::net::TcpListener;
-
-use actix_session::{storage::RedisSessionStore, SessionMiddleware};
-use actix_web::{cookie::Key, dev::Server, web, App, HttpServer};
-use actix_web_flash_messages::{storage::CookieMessageStore, FlashMessagesFramework};
+use actix_session::{SessionMiddleware, storage::RedisSessionStore};
+use actix_web::{App, cookie::Key, dev::Server, HttpServer, web};
+use actix_web_flash_messages::{FlashMessagesFramework, storage::CookieMessageStore};
 use actix_web_lab::middleware::from_fn;
 use secrecy::ExposeSecret;
 use secrecy::Secret;
-use sqlx::{postgres::PgPoolOptions, PgPool};
+use sqlx::{PgPool, postgres::PgPoolOptions};
+use std::net::TcpListener;
 use tracing_actix_web::TracingLogger;
 
 use crate::{
@@ -58,7 +57,7 @@ impl Application {
             HmacSecret(configuration.application.hmac_secret),
             configuration.redis_uri,
         )
-        .await?;
+            .await?;
 
         Ok(Self { port, server })
     }
@@ -140,8 +139,8 @@ pub async fn run(
             .app_data(base_url.clone())
             .app_data(hmac_secret.clone())
     })
-    .listen(listener)?
-    .run();
+        .listen(listener)?
+        .run();
 
     Ok(server)
 }

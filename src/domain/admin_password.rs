@@ -32,9 +32,10 @@ impl AsRef<Secret<String>> for AdminPassword {
 
 #[cfg(test)]
 mod tests {
-    use super::AdminPassword;
     use claims::{assert_err, assert_ok};
     use proptest::{proptest, strategy::Strategy};
+
+    use super::AdminPassword;
 
     //TODO: Add space  as a valid character
     const ADMIN_PASSWORD: &str = "[a-z0-9.!#$%&'*+/=?^_`{|}~-]{12,128}";

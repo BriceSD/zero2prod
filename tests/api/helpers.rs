@@ -164,8 +164,8 @@ impl TestApp {
     }
 
     pub async fn post_login<Body>(&self, body: &Body) -> reqwest::Response
-    where
-        Body: serde::Serialize,
+        where
+            Body: serde::Serialize,
     {
         self.api_client
             .post(&format!("{}/login", &self.address))
@@ -201,8 +201,8 @@ impl TestApp {
     }
 
     pub async fn post_change_password<Body>(&self, body: &Body) -> reqwest::Response
-    where
-        Body: serde::Serialize,
+        where
+            Body: serde::Serialize,
     {
         self.api_client
             .post(&format!("{}/admin/change_password", &self.address))
@@ -235,8 +235,8 @@ impl TestApp {
     }
 
     pub async fn post_publish_newsletter<Body>(&self, body: &Body) -> reqwest::Response
-    where
-        Body: serde::Serialize,
+        where
+            Body: serde::Serialize,
     {
         self.api_client
             .post(&format!("{}/admin/newsletter", &self.address))
@@ -300,9 +300,9 @@ impl TestUser {
             Version::V0x13,
             Params::new(15000, 2, 1, None).unwrap(),
         )
-        .hash_password(self.password.as_bytes(), &salt)
-        .unwrap()
-        .to_string();
+            .hash_password(self.password.as_bytes(), &salt)
+            .unwrap()
+            .to_string();
 
         sqlx::query!(
             "INSERT INTO users (user_id, username, password_hash)
@@ -311,9 +311,9 @@ impl TestUser {
             self.username,
             password_hash,
         )
-        .execute(pool)
-        .await
-        .expect("Failed to store test user.");
+            .execute(pool)
+            .await
+            .expect("Failed to store test user.");
     }
 }
 

@@ -1,4 +1,4 @@
-use actix_web::{web, HttpResponse};
+use actix_web::{HttpResponse, web};
 use anyhow::Context;
 use serde::Deserialize;
 use sqlx::PgPool;
@@ -87,9 +87,9 @@ pub async fn confirm_subscriber(
         r#"UPDATE subscriptions SET status = 'confirmed' WHERE id = $1"#,
         subscriber_id,
     )
-    .execute(pool)
-    .await
-    .map_err(UpdateTokenStatusError)?;
+        .execute(pool)
+        .await
+        .map_err(UpdateTokenStatusError)?;
 
     Ok(())
 }
@@ -103,8 +103,8 @@ pub async fn get_subscriber_id_from_token(
         r#"SELECT subscriber_id FROM subscription_tokens WHERE subscription_token = $1"#,
         subscription_token.as_ref(),
     )
-    .fetch_optional(pool)
-    .await?;
+        .fetch_optional(pool)
+        .await?;
 
     Ok(result.map(|r| r.subscriber_id))
 }

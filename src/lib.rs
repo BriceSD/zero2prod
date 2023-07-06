@@ -1,3 +1,6 @@
+#[cfg(test)]
+extern crate proptest;
+
 pub mod authentication;
 pub mod configuration;
 pub mod domain;
@@ -10,5 +13,3 @@ pub mod telemetry;
 pub mod utils;
 pub mod issue_delivery_worker;
 
-#[cfg(test)]
-extern crate proptest;

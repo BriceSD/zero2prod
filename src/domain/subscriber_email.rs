@@ -27,9 +27,10 @@ impl std::fmt::Display for SubscriberEmail {
 
 #[cfg(test)]
 mod tests {
-    use super::SubscriberEmail;
     use claims::assert_err;
     use proptest::{proptest, strategy::Strategy};
+
+    use super::SubscriberEmail;
 
     // Regex from the specs
     // https://html.spec.whatwg.org/multipage/forms.html#valid-e-mail-address

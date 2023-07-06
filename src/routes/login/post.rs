@@ -6,7 +6,7 @@ use secrecy::Secret;
 use sqlx::PgPool;
 
 use crate::{
-    authentication::{validate_credentials, AuthError, Credentials},
+    authentication::{AuthError, Credentials, validate_credentials},
     routes::error_chain_fmt,
     session_state::TypedSession,
 };
@@ -19,7 +19,7 @@ pub struct FormData {
 
 #[tracing::instrument(
 skip(form, pool, session),
-fields(username=tracing::field::Empty, user_id=tracing::field::Empty)
+fields(username = tracing::field::Empty, user_id = tracing::field::Empty)
 )]
 pub async fn login(
     form: web::Form<FormData>,
